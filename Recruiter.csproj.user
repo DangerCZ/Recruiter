@@ -1,0 +1,15 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <StartProgram>D:\Steam\steamapps\common\Mount &amp; Blade II Bannerlord\bin\Win64_Shipping_Client\Bannerlord.exe</StartProgram>
+    <StartWorkingDirectory>D:\Steam\steamapps\common\Mount &amp; Blade II Bannerlord\bin\Win64_Shipping_Client</StartWorkingDirectory>
+    <StartArguments>/singleplayer _MODULES_%2aNative%2aSandBoxCore%2aCustomBattle%2aSandbox%2aStoryMode%2aBetterTime%2azDeadClansDeactivate%2aXorberaxDeadlyHorseCharges%2aVsMod_NoPlayerPrisonerLimit%2aTroopXPMultiplier%2aSummarizeCashflow%2aSortParty%2aSlicer%2aSkillsMatter%2aSettlementIcons%2aRegeneratingHealth%2aPersistentLock%2aPartyScreenImprovements%2aPartyDailyTrain%2aMBFastDialogue%2aKillBanditsRaiseRelations%2aFreePlay%2aFightingTogetherRelationship%2aFastLoot%2aDismemberment%2aDiplomacyReworked%2aCulturalFeatFixes%2aBuyPatrols%2aBowPerkFixes%2azMoreBandits%2azMoreProjectiles%2aRecruiter%2a_MODULES_</StartArguments>
+    <StartAction>Program</StartAction>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <StartProgram>D:\Steam\steamapps\common\Mount &amp; Blade II Bannerlord\bin\Win64_Shipping_Client\Bannerlord.exe</StartProgram>
+    <StartWorkingDirectory>D:\Steam\steamapps\common\Mount &amp; Blade II Bannerlord\bin\Win64_Shipping_Client</StartWorkingDirectory>
+    <StartArguments>/singleplayer _MODULES_%2aNative%2aSandBoxCore%2aCustomBattle%2aSandbox%2aStoryMode%2aBetterTime%2azDeadClansDeactivate%2aXorberaxDeadlyHorseCharges%2aVsMod_NoPlayerPrisonerLimit%2aTroopXPMultiplier%2aSummarizeCashflow%2aSortParty%2aSlicer%2aSkillsMatter%2aSettlementIcons%2aRegeneratingHealth%2aPersistentLock%2aPartyScreenImprovements%2aPartyDailyTrain%2aMBFastDialogue%2aKillBanditsRaiseRelations%2aFreePlay%2aFightingTogetherRelationship%2aFastLoot%2aDismemberment%2aDiplomacyReworked%2aCulturalFeatFixes%2aBuyPatrols%2aBowPerkFixes%2azMoreBandits%2azMoreProjectiles%2aRecruiter%2a_MODULES_</StartArguments>
+    <StartAction>Program</StartAction>
+  </PropertyGroup>
+</Project>
