@@ -4,7 +4,6 @@
     <e p="C:\Users\Danger\.Rider2019.3\system\extResources" t="IncludeRecursive" />
     <e p="C:\Users\Danger\.Rider2019.3\system\resharper-host\local\Transient\ReSharperHost\v193\SolutionCaches\_Recruiter.1759306328.00" t="ExcludeRecursive" />
     <e p="C:\Users\Danger\source\repos\Recruiter" t="IncludeRecursive">
-      <e p="AccessExtensions.cs" t="Include" />
       <e p="Config.cs" t="Include" />
       <e p="config.json" t="Include" />
       <e p="obj" t="ExcludeRecursive" />
@@ -20,7 +19,6 @@
       <e p="RecruiterData.cs" t="Include" />
       <e p="RecruiterDataSaveableTypeDefiner.cs" t="Include" />
       <e p="RecruiterSubModule.cs" t="Include" />
-      <e p="SettlementExtensions.cs" t="Include" />
       <e p="SubModule.xml" t="Include" />
     </e>
     <e p="D:\Steam\steamapps\common\Mount &amp; Blade II Bannerlord\Modules\Recruiter\bin\Win64_Shipping_Client" t="ExcludeRecursive" />

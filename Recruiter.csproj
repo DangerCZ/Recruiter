@@ -258,14 +258,12 @@
     <!-- TODO: Don't think this can be made optional -->
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AccessExtensions.cs" />
     <Compile Include="Config.cs" />
     <Compile Include="RecruiterCampaignBehavior.cs" />
     <Compile Include="RecruiterData.cs" />
     <Compile Include="RecruiterDataSaveableTypeDefiner.cs" />
     <Compile Include="RecruiterSubModule.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="SettlementExtensions.cs" />
     <Content Include="config.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
