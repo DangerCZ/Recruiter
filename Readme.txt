@@ -1,10 +1,23 @@
-﻿Big thanks to Xorberax for patience with my questions and his Banks mod that was an inspiration to me.
+﻿Danger's Recruiter
+****************************
+Are you tired of being a king that has to do everything alone? Now you can at least hire a recruiter that will keep your garrisons full for you.
 
-Helpful information:
+Features:
+- Daily reports in log
+- You can edit config.json to set your custom price 
 
-(CTRL+Left Click on link to open in your browser)
-Bannerlord Modding Documentation:	https://docs.bannerlordmodding.com/
-Harmony Patching Documentation:		https://harmony.pardeike.net/articles/patching.html
-TaleWorlds Modding Forums:			https://forums.taleworlds.com/index.php?pages/modding/
-Mount and Blade Discord:			https://discordapp.com/invite/mountandblade
-TW Forum - Modding Discord:			https://discordapp.com/invite/ykFVJGQ
+Plans:
+- Add support for castles and not only towns
+- Add icon over castle/town name that shows if recruiter is active
+- Add UI for mod settings
+- Add upgrade: Elite Recruiter - increases the number of recruits per day
+- Add upgrade: Master Recruiter - increases the number of recruits per day
+- Add upgrade: Grandmaster Recruiter - increases the number of recruits per day
+- Add upgrade: Elite Trainer - trains and upgrades your troops to tier 2, increases chance to get some of new recruits already at tier 2
+- Add upgrade: Master Trainer - trains and upgrades your troops to tier 3, further increases chance to get some of new recruits already at tier 2
+- Add upgrade: Grandmaster Trainer - trains and upgrades your troops to tier 4, further increases chance to get some of new recruits already at tier 2
+- Add settings for recruited troop type ratio
+
+
+Thanks:
+- Xorberax for patience with my questions and his Banks mod that was an inspiration to me
