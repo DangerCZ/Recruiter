@@ -1,3 +1,4 @@
 {
-  "recruiterCost": 25000
+  "recruiterCost": 25000,
+  "recruitsPerDay": 5
 }

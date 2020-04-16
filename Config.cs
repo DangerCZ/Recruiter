@@ -6,5 +6,8 @@ namespace Recruiter
     {
         [JsonProperty("recruiterCost")]
         public int RecruiterCost { get; set; }
+        
+        [JsonProperty("recruitsPerDay")]
+        public int RecruitsPerDay { get; set; }
     }
 }

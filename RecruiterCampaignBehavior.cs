@@ -240,7 +240,7 @@ namespace Recruiter
 
         private int GetNumberOfDailyRecruitsAtSettlement(Settlement settlement)
         {
-            return 5;
+            return RecruiterSubModule.Config.RecruitsPerDay;
         }
 
         private RecruiterData GetRecruiterDataAtSettlement(Settlement settlement)
