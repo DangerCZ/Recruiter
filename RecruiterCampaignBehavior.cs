@@ -97,9 +97,12 @@ namespace Recruiter
                     settlement.Town.GarrisonParty.Party.AddMembers(party);
                 }
             }
-            
-            // log message
-            InformationManager.DisplayMessage(new InformationMessage(message));
+
+            // log message (only if there are any settlements)
+            if (_settlementRecruiterDataBySettlementId.Count > 0)
+            {
+                InformationManager.DisplayMessage(new InformationMessage(message));
+            }
 
         }
 
@@ -122,8 +125,26 @@ namespace Recruiter
                 false,
                 1
             );
+            
+            // Castle Menu
+            campaignGameStarter.AddGameMenuOption(
+                "castle",
+                "castle_go_to_recruiter",
+                "{=castle_recruiter}Go to the recruiter",
+                args => 
+                {
+                    var (canPlayerAccessRecruiter, reasonMessage) = CanPlayerAccessRecruiterAtSettlement(Settlement.CurrentSettlement);
+                    args.optionLeaveType = GameMenuOption.LeaveType.Submenu;
+                    args.IsEnabled = canPlayerAccessRecruiter;
+                    args.Tooltip = canPlayerAccessRecruiter ? TextObject.Empty : new TextObject(reasonMessage);
+                    return true;
+                },
+                args => GameMenu.SwitchToMenu("recruiter"),
+                false,
+                1
+            );
 
-            // Bank Account
+            // Recruiter
             campaignGameStarter.AddGameMenu(
                 "recruiter",
                 "{=recruiter_info}{DANGER_RECRUITER_INFO}",
