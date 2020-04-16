@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using NetworkMessages.FromServer;
 using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
@@ -42,6 +44,10 @@ namespace Recruiter
 
         private void UpdateRecruiter()
         {
+            
+            var message = "Recruiter Garrison Report: ";
+            var shouldAddSeparator = false;
+            
             foreach (var settlementId in _settlementRecruiterDataBySettlementId.Keys)
             {
                 var settlement = Settlement.Find(settlementId);
@@ -60,12 +66,19 @@ namespace Recruiter
                         count = maxGarrisonCount - currentGarrisonCount;
                     }
 
-                    // display information in chat
-                    InformationManager.DisplayMessage(count == 0
-                        ? new InformationMessage(
-                            $"{settlement.Name}'s Garrison: {currentGarrisonCount+count}/{maxGarrisonCount}")
-                        : new InformationMessage(
-                            $"{settlement.Name}'s Garrison: {currentGarrisonCount+count}/{maxGarrisonCount} (+{count})"));
+                    // add information to log message (only if there is a change)
+                    if (shouldAddSeparator) message += ", ";
+                    
+                    if (count > 0)
+                    {
+                        message += $"{settlement.Name} ({currentGarrisonCount+count}/{maxGarrisonCount})";
+                    }
+                    else
+                    {
+                        message += $"{settlement.Name} ({currentGarrisonCount+count})";
+                    }
+
+                    shouldAddSeparator = true;
 
                     // create roster of troops
                     var party = new FlattenedTroopRoster();
@@ -84,6 +97,10 @@ namespace Recruiter
                     settlement.Town.GarrisonParty.Party.AddMembers(party);
                 }
             }
+            
+            // log message
+            InformationManager.DisplayMessage(new InformationMessage(message));
+
         }
 
         private void AddMenus(CampaignGameStarter campaignGameStarter)
@@ -191,8 +208,8 @@ namespace Recruiter
         {
             var recruiterData = GetRecruiterDataAtSettlement(settlement);
             return recruiterData.HasRecruiter
-                ? "The recruiter is active. Expect 5 new recruits in your garrison every day."
-                : "There is no active recruiter yet.";
+                ? "The recruiter is active, 5 new recruits will join your garrison every day."
+                : "There is no active recruiter yet. Hire one to get 5 new recruits in your garrison every day.";
         }
 
         private int GetRecruiterCost()
