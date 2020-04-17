@@ -13,5 +13,8 @@ namespace Recruiter
         
         [SaveableProperty(3)]
         public int RecruiterLevel { get; set; }
+        
+        [SaveableProperty(4)]
+        public bool IsRecruiterEnabled { get; set; }
     }
 }

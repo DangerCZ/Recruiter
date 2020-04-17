@@ -34,22 +34,8 @@ namespace Recruiter
             }
         }
 
-        private void OnSessionLaunched(CampaignGameStarter campaignGameStarter)
+        private void Cleanup()
         {
-            AddMenus(campaignGameStarter);
-        }
-
-        private void OnDailyTick()
-        {
-            UpdateRecruiter();
-        }
-
-        private void UpdateRecruiter()
-        {
-            
-            var message = "Recruiter Garrison Report: ";
-            var shouldAddSeparator = false;
-            
             foreach (var settlementId in _settlementRecruiterDataBySettlementId.Keys)
             {
                 var settlement = Settlement.Find(settlementId);
@@ -62,12 +48,51 @@ namespace Recruiter
                     {
                         recruiterData.HasRecruiter = false;
                         recruiterData.RecruiterLevel = 0;
+                        recruiterData.IsRecruiterEnabled = false;
                         InformationManager.DisplayMessage(new InformationMessage($"{settlement.Name} is lost. Your recruiter ran away."));
                     }
                 }
 
-                if(recruiterData.HasRecruiter)
+                // this ensure that anyone with recruiter without level (early version didn't have it) can use it properly
+                if (recruiterData.HasRecruiter && recruiterData.RecruiterLevel == 0)
                 {
+                    recruiterData.RecruiterLevel = 1;
+                    recruiterData.IsRecruiterEnabled = true;
+                }
+            }
+        }
+
+        private void OnSessionLaunched(CampaignGameStarter campaignGameStarter)
+        {
+            Cleanup();
+            AddMenus(campaignGameStarter);
+        }
+
+        private void OnDailyTick()
+        {
+            UpdateRecruiter();
+        }
+
+        private void UpdateRecruiter()
+        {
+            Cleanup();
+            
+            var message = "Recruiter Garrison Report: ";
+            var shouldAddSeparator = false;
+            
+            foreach (var settlementId in _settlementRecruiterDataBySettlementId.Keys)
+            {
+                var settlement = Settlement.Find(settlementId);
+                var recruiterData = GetRecruiterDataAtSettlement(settlement);
+                
+                if(recruiterData.HasRecruiter && recruiterData.IsRecruiterEnabled)
+                {
+                    // if there is no party, make one
+                    if (settlement.Town.GarrisonParty == null)
+                    {
+                        settlement.AddGarrisonParty();
+                    }
+                    
                     // get number of troops to be recruited
                     var count = GetRecruitsPerDayAtSettlement(settlement);
                     var currentGarrisonCount = settlement.Town.GarrisonParty?.Party.NumberOfAllMembers ?? 0;
@@ -80,34 +105,20 @@ namespace Recruiter
                     }
 
                     // add information to log message (only if there is a change)
-                    if (shouldAddSeparator) message += ", ";
-                    
                     if (count > 0)
                     {
-                        message += $"{settlement.Name} ({currentGarrisonCount+count}/{maxGarrisonCount})";
-                    }
-                    else
-                    {
-                        message += $"{settlement.Name} ({currentGarrisonCount+count})";
+                        if (shouldAddSeparator) message += ", ";
+                        
+                        message += $"{settlement.Name} (+{count})";
+                        //message += $"{settlement.Name} ({currentGarrisonCount+count}/{maxGarrisonCount})";
                     }
 
                     shouldAddSeparator = true;
-
-                    // create roster of troops
-                    var party = new FlattenedTroopRoster();
-                    for (int i = 0; i < count; i++)
-                    {
-                        party.Add(settlement.Culture.BasicTroop);
-                    }
-
-                    // if there is no party, make one
-                    if (settlement.Town.GarrisonParty == null)
-                    {
-                        settlement.AddGarrisonParty();
-                    }
                     
                     // add roster to garrison
-                    settlement.Town.GarrisonParty.Party.AddMembers(party);
+                    if (settlement.Town.GarrisonParty != null)
+                        settlement.Town.GarrisonParty.AddElementToMemberRoster(settlement.Culture.BasicTroop, count,
+                            false);
                 }
             }
 
@@ -189,6 +200,22 @@ namespace Recruiter
             );
             campaignGameStarter.AddGameMenuOption(
                 "recruiter",
+                "recruiter_enable_or_disable",
+                "{=recruiter_enable_or_disable}{DANGER_RECRUITER_ENABLE_OR_DISABLE}",
+                args =>
+                {
+                    var hasRecruiter = GetRecruiterDataAtSettlement(Settlement.CurrentSettlement).HasRecruiter;
+                    args.IsEnabled = hasRecruiter;
+                    args.Tooltip = hasRecruiter
+                        ? TextObject.Empty
+                        : new TextObject("You didn't hire recruiter yet.");
+                    args.optionLeaveType = GameMenuOption.LeaveType.Craft;
+                    return true;
+                },
+                args => OnRecruiterEnabledOrDisabled(Settlement.CurrentSettlement)
+            );
+            campaignGameStarter.AddGameMenuOption(
+                "recruiter",
                 "recruiter_leave",
                 "{=recruiter_leave}Leave recruiter",
                 args =>
@@ -243,12 +270,19 @@ namespace Recruiter
             {
                 return GetPlayerMoneyOnPerson() >= GetRecruiterCost(1);
             }
-            
         }
 
         private void OnRecruiterHireAtSettlement(Settlement settlement)
         {
             if (TryToHireRecruiterAtSettlement(settlement))
+            {
+                GameMenu.SwitchToMenu("recruiter");
+            }
+        }
+
+        private void OnRecruiterEnabledOrDisabled(Settlement settlement)
+        {
+            if (SwitchEnabledAndDisabledState(settlement))
             {
                 GameMenu.SwitchToMenu("recruiter");
             }
@@ -276,6 +310,10 @@ namespace Recruiter
             var recruiterInfo = recruiterData.HasRecruiter
                 ? $"The {recruiterTitle} is active, {recruitsPerDay} new recruits will join your garrison every day."
                 : "There is no active recruiter yet. Hire one to get 5 new recruits in your garrison every day.";
+            if (recruiterData.HasRecruiter && !recruiterData.IsRecruiterEnabled)
+            {
+                recruiterInfo = $"The {recruiterTitle} is currently disabled and produces no recruits.";
+            }
             MBTextManager.SetTextVariable("DANGER_RECRUITER_INFO", recruiterInfo);
             
             // action
@@ -284,6 +322,12 @@ namespace Recruiter
                 : $"Upgrade to Level {recruiterData.RecruiterLevel + 1} ({GetRecruitsPerDay(recruiterData.RecruiterLevel + 1)} per day)";
             MBTextManager.SetTextVariable("DANGER_RECRUITER_ACTION", recruiterAction);
             
+            // enable or disable
+            var recruiterEnableOrDisable = recruiterData.IsRecruiterEnabled
+                ? "Disable recruiter"
+                : "Enable recruiter";
+            MBTextManager.SetTextVariable("DANGER_RECRUITER_ENABLE_OR_DISABLE", recruiterEnableOrDisable);
+
         }
 
         private int GetRecruiterCost(int level)
@@ -345,7 +389,22 @@ namespace Recruiter
             
             recruiterData.HasRecruiter = true;
             recruiterData.RecruiterLevel += 1;
+            recruiterData.IsRecruiterEnabled = true;
             GiveGoldAction.ApplyForCharacterToSettlement(Hero.MainHero, settlement, costToHire);
+            return true;
+        }
+
+        private bool SwitchEnabledAndDisabledState(Settlement settlement)
+        {
+
+            var recruiterData = GetRecruiterDataAtSettlement(settlement);
+            
+            if (!recruiterData.HasRecruiter)
+            {
+                InformationManager.DisplayMessage(new InformationMessage("You didn't hire recruiter yet."));
+            }
+            
+            recruiterData.IsRecruiterEnabled = !recruiterData.IsRecruiterEnabled;
             return true;
         }
 
