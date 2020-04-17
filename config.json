@@ -1,4 +1,12 @@
 {
+  "isEnabledForGarrisonInTowns": true,
+  "isEnabledForGarrisonInCastles": true,
   "recruiterCost": 25000,
-  "recruitsPerDay": 5
+  "recruitsPerDay": 5,
+  "eliteRecruiterCost": 50000,
+  "eliteRecruitsPerDay": 10,
+  "masterRecruiterCost": 75000,
+  "masterRecruitsPerDay": 15,
+  "grandmasterRecruiterCost": 100000,
+  "grandmasterRecruitsPerDay": 20
 }

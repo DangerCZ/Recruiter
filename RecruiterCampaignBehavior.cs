@@ -6,7 +6,9 @@ using TaleWorlds.CampaignSystem;
 using TaleWorlds.CampaignSystem.Actions;
 using TaleWorlds.CampaignSystem.GameMenus;
 using TaleWorlds.CampaignSystem.Overlay;
+using TaleWorlds.CampaignSystem.SandBox.GameComponents.Party;
 using TaleWorlds.Core;
+using TaleWorlds.Library;
 using TaleWorlds.Localization;
 
 namespace Recruiter
@@ -52,11 +54,22 @@ namespace Recruiter
             {
                 var settlement = Settlement.Find(settlementId);
                 var recruiterData = GetRecruiterDataAtSettlement(settlement);
+                
+                // check if settlement is still owned by player, set recruiter to level 0 if not
+                if (settlement.OwnerClan != Clan.PlayerClan)
+                {
+                    if (recruiterData.HasRecruiter)
+                    {
+                        recruiterData.HasRecruiter = false;
+                        recruiterData.RecruiterLevel = 0;
+                        InformationManager.DisplayMessage(new InformationMessage($"{settlement.Name} is lost. Your recruiter ran away."));
+                    }
+                }
 
                 if(recruiterData.HasRecruiter)
                 {
                     // get number of troops to be recruited
-                    var count = GetNumberOfDailyRecruitsAtSettlement(settlement);
+                    var count = GetRecruitsPerDayAtSettlement(settlement);
                     var currentGarrisonCount = settlement.Town.GarrisonParty?.Party.NumberOfAllMembers ?? 0;
                     var maxGarrisonCount = settlement.Town.GarrisonParty?.Party.PartySizeLimit ?? 0;
                     
@@ -125,7 +138,7 @@ namespace Recruiter
                 false,
                 1
             );
-            
+
             // Castle Menu
             campaignGameStarter.AddGameMenuOption(
                 "castle",
@@ -154,22 +167,25 @@ namespace Recruiter
             campaignGameStarter.AddGameMenuOption(
                 "recruiter",
                 "recruiter_hire",
-                "{=recruiter_hire}Hire Recruiter ({DANGER_RECRUITER_COST}{GOLD_ICON})",
+                "{=recruiter_hire}{DANGER_RECRUITER_ACTION} ({DANGER_RECRUITER_COST}{GOLD_ICON})",
                 args =>
                 {
-                    if (DoesPlayerHaveRecruiterAtSettlement(Settlement.CurrentSettlement))
-                    {
-                        return false;
-                    }
                     var canPlayerAffordToHireRecruiterAtSettlement = CanPlayerAffordToHireRecruiterAtSettlement(Settlement.CurrentSettlement);
                     args.optionLeaveType = GameMenuOption.LeaveType.Continue;
                     args.IsEnabled = canPlayerAffordToHireRecruiterAtSettlement;
                     args.Tooltip = canPlayerAffordToHireRecruiterAtSettlement
                         ? TextObject.Empty
                         : new TextObject("You cannot afford to hire a recruiter here.");
+                    
+                    if (DoesPlayerHaveRecruiterAtSettlement(Settlement.CurrentSettlement))
+                    {
+                        var recruiterData = GetRecruiterDataAtSettlement(Settlement.CurrentSettlement);
+                        return recruiterData.RecruiterLevel < 4 ? true : false;
+                    }
+                    
                     return true;
                 },
-                args => OnOpenBankAccountAtSettlement(Settlement.CurrentSettlement)
+                args => OnRecruiterHireAtSettlement(Settlement.CurrentSettlement)
             );
             campaignGameStarter.AddGameMenuOption(
                 "recruiter",
@@ -180,7 +196,7 @@ namespace Recruiter
                     args.optionLeaveType = GameMenuOption.LeaveType.Leave;
                     return true;
                 },
-                args => GameMenu.SwitchToMenu("town")
+                args => GameMenu.SwitchToMenu(Settlement.CurrentSettlement.IsTown ? "town" : "castle")
             );
         }
 
@@ -192,6 +208,16 @@ namespace Recruiter
 
         private (bool CanAccess, string ReasonMessage) CanPlayerAccessRecruiterAtSettlement(Settlement settlement)
         {
+            if (RecruiterSubModule.Config.IsEnabledForGarrisonInCastles == false && settlement.IsCastle)
+            {
+                return (false, "If you want to access recruiter, enable it in Danger's Recruiter mod config.");
+            }
+            
+            if (RecruiterSubModule.Config.IsEnabledForGarrisonInTowns == false && settlement.IsTown)
+            {
+                return (false, "If you want to access recruiter, enable it in Danger's Recruiter mod config.");
+            }
+            
             if (!CampaignTime.Now.IsDayTime)
             {
                 return (false, "The recruiter is not available. Try it in the morning.");
@@ -207,10 +233,20 @@ namespace Recruiter
 
         private bool CanPlayerAffordToHireRecruiterAtSettlement(Settlement settlement)
         {
-            return GetPlayerMoneyOnPerson() >= GetRecruiterCost();
+            var recruiterData = GetRecruiterDataAtSettlement(settlement);
+
+            if (recruiterData.HasRecruiter)
+            {
+                return GetPlayerMoneyOnPerson() >= GetRecruiterCost(recruiterData.RecruiterLevel + 1);
+            }
+            else
+            {
+                return GetPlayerMoneyOnPerson() >= GetRecruiterCost(1);
+            }
+            
         }
 
-        private void OnOpenBankAccountAtSettlement(Settlement settlement)
+        private void OnRecruiterHireAtSettlement(Settlement settlement)
         {
             if (TryToHireRecruiterAtSettlement(settlement))
             {
@@ -221,26 +257,62 @@ namespace Recruiter
         private void UpdateRecruiterMenuTextVariables()
         {
             MBTextManager.SetTextVariable("DANGER_RECRUITER_SETTLEMENT_NAME", Settlement.CurrentSettlement.Name);
-            MBTextManager.SetTextVariable("DANGER_RECRUITER_INFO", BuildRecruiterInfoText(Settlement.CurrentSettlement));
-            MBTextManager.SetTextVariable("DANGER_RECRUITER_COST", GetRecruiterCost());
-        }
+            
+            // cost
+            var recruiterData = GetRecruiterDataAtSettlement(Settlement.CurrentSettlement);
+            MBTextManager.SetTextVariable("DANGER_RECRUITER_COST", GetRecruiterCost(recruiterData.RecruiterLevel + 1));
+            
+            // recruits per day
+            MBTextManager.SetTextVariable("DANGER_RECRUITS_PER_DAY", GetRecruitsPerDay(recruiterData.RecruiterLevel + 1));
 
-        private string BuildRecruiterInfoText(Settlement settlement)
-        {
-            var recruiterData = GetRecruiterDataAtSettlement(settlement);
-            return recruiterData.HasRecruiter
-                ? "The recruiter is active, 5 new recruits will join your garrison every day."
+            // title
+            var recruiterTitle = recruiterData.RecruiterLevel >= 1
+                ? $"recruiter (Level {recruiterData.RecruiterLevel})"
+                : "recruiter";
+            MBTextManager.SetTextVariable("DANGER_RECRUITER_TITLE", recruiterTitle);
+            
+            // info
+            var recruitsPerDay = GetRecruitsPerDayAtSettlement(Settlement.CurrentSettlement);
+            var recruiterInfo = recruiterData.HasRecruiter
+                ? $"The {recruiterTitle} is active, {recruitsPerDay} new recruits will join your garrison every day."
                 : "There is no active recruiter yet. Hire one to get 5 new recruits in your garrison every day.";
+            MBTextManager.SetTextVariable("DANGER_RECRUITER_INFO", recruiterInfo);
+            
+            // action
+            var recruiterAction = recruiterData.RecruiterLevel == 0
+                ? "Hire a recruiter"
+                : $"Upgrade to Level {recruiterData.RecruiterLevel + 1} ({GetRecruitsPerDay(recruiterData.RecruiterLevel + 1)} per day)";
+            MBTextManager.SetTextVariable("DANGER_RECRUITER_ACTION", recruiterAction);
+            
         }
 
-        private int GetRecruiterCost()
+        private int GetRecruiterCost(int level)
         {
-            return RecruiterSubModule.Config.RecruiterCost;
+            switch (level)
+            {
+                case 1: return RecruiterSubModule.Config.RecruiterCost;
+                case 2: return RecruiterSubModule.Config.EliteRecruiterCost;
+                case 3: return RecruiterSubModule.Config.MasterRecruiterCost;
+                case 4: return RecruiterSubModule.Config.GrandmasterRecruiterCost;
+                default: return 0;
+            }
+        }
+        
+        private int GetRecruitsPerDay(int level)
+        {
+            switch (level)
+            {
+                case 1: return RecruiterSubModule.Config.RecruitsPerDay;
+                case 2: return RecruiterSubModule.Config.EliteRecruitsPerDay;
+                case 3: return RecruiterSubModule.Config.MasterRecruitsPerDay;
+                case 4: return RecruiterSubModule.Config.GrandmasterRecruitsPerDay;
+                default: return 0;
+            }
         }
 
-        private int GetNumberOfDailyRecruitsAtSettlement(Settlement settlement)
+        private int GetRecruitsPerDayAtSettlement(Settlement settlement)
         {
-            return RecruiterSubModule.Config.RecruitsPerDay;
+            return GetRecruitsPerDay(GetRecruiterDataAtSettlement(settlement).RecruiterLevel);
         }
 
         private RecruiterData GetRecruiterDataAtSettlement(Settlement settlement)
@@ -254,14 +326,25 @@ namespace Recruiter
 
         private bool TryToHireRecruiterAtSettlement(Settlement settlement)
         {
-            var costToHire = GetRecruiterCost();
+            
+            var recruiterData = GetRecruiterDataAtSettlement(settlement);
+            
+            var costToHire = GetRecruiterCost(recruiterData.RecruiterLevel + 1);
             if (costToHire > Hero.MainHero.Gold)
             {
-                InformationManager.DisplayMessage(new InformationMessage("You cannot afford to hire a recruiter here."));
+                if (recruiterData.RecruiterLevel == 0)
+                {
+                    InformationManager.DisplayMessage(new InformationMessage("You cannot afford to hire a recruiter here."));
+                }
+                else
+                {
+                    InformationManager.DisplayMessage(new InformationMessage("You cannot afford to upgrade the recruiter."));
+                }
                 return false;
             }
-            var recruiterData = GetRecruiterDataAtSettlement(settlement);
+            
             recruiterData.HasRecruiter = true;
+            recruiterData.RecruiterLevel += 1;
             GiveGoldAction.ApplyForCharacterToSettlement(Hero.MainHero, settlement, costToHire);
             return true;
         }
@@ -270,7 +353,8 @@ namespace Recruiter
         {
             return new RecruiterData
             {
-                HasRecruiter = false
+                HasRecruiter = false,
+                RecruiterLevel = 0
             };
         }
 

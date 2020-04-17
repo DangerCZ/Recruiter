@@ -4,20 +4,9 @@ Are you tired of being a king that has to do everything alone? Now you can at le
 
 Features:
 - Recruit units automatically in towns and castles
-- You can edit config.json to set your custom values
+- You can edit config.json to set your custom values and enable/disable recruiter for towns and castles separately
+- You can upgrade your recruiter to get you more units per day but at increasingly higher cost
 - Daily reports in log
-
-Plans:
-- Add icon over castle/town name that shows if recruiter is active
-- Add UI for mod settings
-- Add upgrade: Elite Recruiter - increases the number of recruits per day
-- Add upgrade: Master Recruiter - increases the number of recruits per day
-- Add upgrade: Grandmaster Recruiter - increases the number of recruits per day
-- Add upgrade: Elite Trainer - trains and upgrades your troops to tier 2, increases chance to get some of new recruits already at tier 2
-- Add upgrade: Master Trainer - trains and upgrades your troops to tier 3, further increases chance to get some of new recruits already at tier 2
-- Add upgrade: Grandmaster Trainer - trains and upgrades your troops to tier 4, further increases chance to get some of new recruits already at tier 2
-- Add settings for recruited troop type ratio
-
 
 Thanks:
 - Xorberax
