@@ -8,5 +8,6 @@
   "masterRecruiterCost": 75000,
   "masterRecruitsPerDay": 15,
   "grandmasterRecruiterCost": 100000,
-  "grandmasterRecruitsPerDay": 20
+  "grandmasterRecruitsPerDay": 20,
+  "garrisonPercentChangeByStep": 25
 }

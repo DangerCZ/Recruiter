@@ -16,5 +16,8 @@ namespace Recruiter
         
         [SaveableProperty(4)]
         public bool IsRecruiterEnabled { get; set; }
+        
+        [SaveableProperty(5)]
+        public int MaxPercentOfUnitsInGarrison { get; set; }
     }
 }

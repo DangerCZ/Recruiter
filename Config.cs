@@ -33,5 +33,8 @@ namespace Recruiter
         
         [JsonProperty("grandmasterRecruitsPerDay")]
         public int GrandmasterRecruitsPerDay { get; set; }
+        
+        [JsonProperty("garrisonPercentChangeByStep")]
+        public int GarrisonPercentChangeByStep { get; set; }
     }
 }

@@ -40,7 +40,7 @@ namespace Recruiter
             {
                 var settlement = Settlement.Find(settlementId);
                 var recruiterData = GetRecruiterDataAtSettlement(settlement);
-                
+
                 // check if settlement is still owned by player, set recruiter to level 0 if not
                 if (settlement.OwnerClan != Clan.PlayerClan)
                 {
@@ -49,19 +49,21 @@ namespace Recruiter
                         recruiterData.HasRecruiter = false;
                         recruiterData.RecruiterLevel = 0;
                         recruiterData.IsRecruiterEnabled = false;
-                        InformationManager.DisplayMessage(new InformationMessage($"{settlement.Name} is lost. Your recruiter ran away."));
+                        recruiterData.MaxPercentOfUnitsInGarrison = 50;
+                        InformationManager.DisplayMessage(new InformationMessage($"{settlement.Name} is no longer in your hands. Your recruiter ran away."));
                     }
                 }
 
-                // this ensure that anyone with recruiter without level (early version didn't have it) can use it properly
+                // this ensure that anyone with recruiter without level or limit (early version didn't have it) can use it properly
                 if (recruiterData.HasRecruiter && recruiterData.RecruiterLevel == 0)
                 {
                     recruiterData.RecruiterLevel = 1;
                     recruiterData.IsRecruiterEnabled = true;
+                    recruiterData.MaxPercentOfUnitsInGarrison = 50;
                 }
             }
         }
-
+        
         private void OnSessionLaunched(CampaignGameStarter campaignGameStarter)
         {
             Cleanup();
@@ -76,9 +78,12 @@ namespace Recruiter
         private void UpdateRecruiter()
         {
             Cleanup();
+
+            var message = "- ";
+            InformationManager.DisplayMessage(new InformationMessage("Recruiter Garrison Report:"));
             
-            var message = "Recruiter Garrison Report: ";
             var shouldAddSeparator = false;
+            var totalNewRecruits = 0;
             
             foreach (var settlementId in _settlementRecruiterDataBySettlementId.Keys)
             {
@@ -103,18 +108,25 @@ namespace Recruiter
                     {
                         count = maxGarrisonCount - currentGarrisonCount;
                     }
+                    
+                    // make sure we don't recruit over the limit based on garrison max count and user's limit in %
+                    var maxGarrisonCountByPlayerLimit =
+                        Math.Round((double)recruiterData.MaxPercentOfUnitsInGarrison / 100 * (double)maxGarrisonCount);
+                    if (currentGarrisonCount + count >= maxGarrisonCountByPlayerLimit)
+                    {
+                        count = 0; // do not add any units
+                    }
 
                     // add information to log message (only if there is a change)
                     if (count > 0)
                     {
+                        totalNewRecruits += count;
                         if (shouldAddSeparator) message += ", ";
+                        shouldAddSeparator = true;
                         
                         message += $"{settlement.Name} (+{count})";
-                        //message += $"{settlement.Name} ({currentGarrisonCount+count}/{maxGarrisonCount})";
                     }
 
-                    shouldAddSeparator = true;
-                    
                     // add roster to garrison
                     if (settlement.Town.GarrisonParty != null)
                         settlement.Town.GarrisonParty.AddElementToMemberRoster(settlement.Culture.BasicTroop, count,
@@ -122,10 +134,21 @@ namespace Recruiter
                 }
             }
 
+            // if there are no new recruits, tell player
+            if (totalNewRecruits == 0)
+            {
+                InformationManager.DisplayMessage(new InformationMessage("- No new recruits today"));
+                return;
+            }
+            else
+            {
+                InformationManager.DisplayMessage(new InformationMessage($"- Total: {totalNewRecruits} new recruits"));
+            }
+
             // log message (only if there are any settlements)
             if (_settlementRecruiterDataBySettlementId.Count > 0)
             {
-                InformationManager.DisplayMessage(new InformationMessage(message));
+                InformationManager.DisplayMessage(new InformationMessage($"{message}"));
             }
 
         }
@@ -171,7 +194,7 @@ namespace Recruiter
             // Recruiter
             campaignGameStarter.AddGameMenu(
                 "recruiter",
-                "{=recruiter_info}{DANGER_RECRUITER_INFO}",
+                "{=recruiter_info}{DANGER_RECRUITER_INFO}\n{DANGER_RECRUITER_CURRENT_LIMIT}",
                 args => UpdateRecruiterMenuTextVariables(),
                 GameOverlays.MenuOverlayType.SettlementWithBoth
             );
@@ -200,6 +223,46 @@ namespace Recruiter
             );
             campaignGameStarter.AddGameMenuOption(
                 "recruiter",
+                "recruiter_increase",
+                "{=recruiter_increase}{DANGER_RECRUITER_INCREASE_LIMIT}",
+                args =>
+                {
+                    args.IsEnabled = GetRecruiterDataAtSettlement(Settlement.CurrentSettlement).MaxPercentOfUnitsInGarrison < GetIncreaseLimitInPercent(Settlement.CurrentSettlement);
+                    args.optionLeaveType = GameMenuOption.LeaveType.Conversation;
+                    return true;
+                },
+                args => OnRecruiterChangeLimit(Settlement.CurrentSettlement, GetIncreaseLimitInPercent(Settlement.CurrentSettlement))
+            );
+            campaignGameStarter.AddGameMenuOption(
+                "recruiter",
+                "recruiter_decrease",
+                "{=recruiter_decrease}{DANGER_RECRUITER_DECREASE_LIMIT}",
+                args =>
+                {
+                    args.IsEnabled = GetRecruiterDataAtSettlement(Settlement.CurrentSettlement).MaxPercentOfUnitsInGarrison > GetDecreaseLimitInPercent(Settlement.CurrentSettlement);
+                    args.optionLeaveType = GameMenuOption.LeaveType.Conversation;
+                    return true;
+                },
+                args => OnRecruiterChangeLimit(Settlement.CurrentSettlement, GetDecreaseLimitInPercent(Settlement.CurrentSettlement))
+            );
+            campaignGameStarter.AddGameMenuOption(
+                "recruiter",
+                "recruiter_apply_same_limit_to_all",
+                "{=recruiter_apply_same_limit_to_all}{DANGER_RECRUITER_APPLY_SAME_LIMIT_TO_ALL}",
+                args =>
+                {
+                    var hasRecruiter = GetRecruiterDataAtSettlement(Settlement.CurrentSettlement).HasRecruiter;
+                    args.IsEnabled = hasRecruiter;
+                    args.Tooltip = hasRecruiter
+                        ? TextObject.Empty
+                        : new TextObject("You didn't hire recruiter yet.");
+                    args.optionLeaveType = GameMenuOption.LeaveType.Conversation;
+                    return true;
+                },
+                args => OnRecruiterApplySameLimitToAllSettlements(Settlement.CurrentSettlement)
+            );
+            campaignGameStarter.AddGameMenuOption(
+                "recruiter",
                 "recruiter_enable_or_disable",
                 "{=recruiter_enable_or_disable}{DANGER_RECRUITER_ENABLE_OR_DISABLE}",
                 args =>
@@ -209,7 +272,7 @@ namespace Recruiter
                     args.Tooltip = hasRecruiter
                         ? TextObject.Empty
                         : new TextObject("You didn't hire recruiter yet.");
-                    args.optionLeaveType = GameMenuOption.LeaveType.Craft;
+                    args.optionLeaveType = GameMenuOption.LeaveType.Conversation;
                     return true;
                 },
                 args => OnRecruiterEnabledOrDisabled(Settlement.CurrentSettlement)
@@ -244,7 +307,7 @@ namespace Recruiter
             {
                 return (false, "If you want to access recruiter, enable it in Danger's Recruiter mod config.");
             }
-            
+
             if (!CampaignTime.Now.IsDayTime)
             {
                 return (false, "The recruiter is not available. Try it in the morning.");
@@ -252,7 +315,7 @@ namespace Recruiter
 
             if (settlement.OwnerClan != Clan.PlayerClan)
             {
-                return (false, "This is not your settlement. You cannot access recruiter.");
+                return (false, "This is not your settlement. The recruiter won't speak with you.");
             }
 
             return (true, string.Empty);
@@ -287,6 +350,42 @@ namespace Recruiter
                 GameMenu.SwitchToMenu("recruiter");
             }
         }
+        
+        private void OnRecruiterChangeLimit(Settlement settlement, int newLimit)
+        {
+            var recruiterData = GetRecruiterDataAtSettlement(settlement);
+            recruiterData.MaxPercentOfUnitsInGarrison = newLimit;
+            GameMenu.SwitchToMenu("recruiter");
+        }
+
+        private void OnRecruiterApplySameLimitToAllSettlements(Settlement limitSettlement)
+        {
+            var num = 0;
+            var limit = GetRecruiterDataAtSettlement(limitSettlement).MaxPercentOfUnitsInGarrison;
+            
+            foreach (var settlementId in _settlementRecruiterDataBySettlementId.Keys)
+            {
+                var settlement = Settlement.Find(settlementId);
+                var recruiterData = GetRecruiterDataAtSettlement(settlement);
+                
+                if(recruiterData.HasRecruiter)
+                {
+                    recruiterData.MaxPercentOfUnitsInGarrison = limit;
+                    num++;
+                }
+            }
+
+            if (num > 0)
+            {
+                InformationManager.DisplayMessage(new InformationMessage($"Recruiter limit successfully set to {limit}% in {num} settlements."));
+            }
+            else
+            {
+                InformationManager.DisplayMessage(new InformationMessage($"You have no settlements with recruiter."));
+            }
+            
+            GameMenu.SwitchToMenu("recruiter");
+        }
 
         private void UpdateRecruiterMenuTextVariables()
         {
@@ -305,17 +404,6 @@ namespace Recruiter
                 : "recruiter";
             MBTextManager.SetTextVariable("DANGER_RECRUITER_TITLE", recruiterTitle);
             
-            // info
-            var recruitsPerDay = GetRecruitsPerDayAtSettlement(Settlement.CurrentSettlement);
-            var recruiterInfo = recruiterData.HasRecruiter
-                ? $"The {recruiterTitle} is active, {recruitsPerDay} new recruits will join your garrison every day."
-                : "There is no active recruiter yet. Hire one to get 5 new recruits in your garrison every day.";
-            if (recruiterData.HasRecruiter && !recruiterData.IsRecruiterEnabled)
-            {
-                recruiterInfo = $"The {recruiterTitle} is currently disabled and produces no recruits.";
-            }
-            MBTextManager.SetTextVariable("DANGER_RECRUITER_INFO", recruiterInfo);
-            
             // action
             var recruiterAction = recruiterData.RecruiterLevel == 0
                 ? "Hire a recruiter"
@@ -324,12 +412,44 @@ namespace Recruiter
             
             // enable or disable
             var recruiterEnableOrDisable = recruiterData.IsRecruiterEnabled
-                ? "Disable recruiter"
-                : "Enable recruiter";
+                ? $"Disable recruiter in {Settlement.CurrentSettlement.Name}"
+                : $"Enable recruiter in {Settlement.CurrentSettlement.Name}";
             MBTextManager.SetTextVariable("DANGER_RECRUITER_ENABLE_OR_DISABLE", recruiterEnableOrDisable);
-
+            
+            // increase and decrease limit
+            MBTextManager.SetTextVariable("DANGER_RECRUITER_CURRENT_LIMIT", $"Current limit: {GetRecruiterDataAtSettlement(Settlement.CurrentSettlement).MaxPercentOfUnitsInGarrison}% of the garrison's max limit.");
+            MBTextManager.SetTextVariable("DANGER_RECRUITER_INCREASE_LIMIT", $"Increase limit to {GetIncreaseLimitInPercent(Settlement.CurrentSettlement)}%.");
+            MBTextManager.SetTextVariable("DANGER_RECRUITER_DECREASE_LIMIT", $"Decrease limit to {GetDecreaseLimitInPercent(Settlement.CurrentSettlement)}%.");
+            MBTextManager.SetTextVariable("DANGER_RECRUITER_APPLY_SAME_LIMIT_TO_ALL", $"Apply this limit to all settlements ({GetRecruiterDataAtSettlement(Settlement.CurrentSettlement).MaxPercentOfUnitsInGarrison}%).");
+            
+            // info
+            var recruitsPerDay = GetRecruitsPerDayAtSettlement(Settlement.CurrentSettlement);
+            var recruiterInfo = recruiterData.HasRecruiter
+                ? $"The {recruiterTitle} is active, {recruitsPerDay} new recruits will join your garrison every day."
+                : "There is no active recruiter yet. Hire one to get 5 new recruits in your garrison every day.";
+            if ((recruiterData.HasRecruiter && !recruiterData.IsRecruiterEnabled) || recruiterData.MaxPercentOfUnitsInGarrison == 0)
+            {
+                recruiterInfo = $"The {recruiterTitle} produces no recruits because it is disabled or the limit is set too low.";
+            }
+            MBTextManager.SetTextVariable("DANGER_RECRUITER_INFO", recruiterInfo);
         }
 
+        private int GetIncreaseLimitInPercent(Settlement settlement)
+        {
+            var currentLimit = GetRecruiterDataAtSettlement(Settlement.CurrentSettlement).MaxPercentOfUnitsInGarrison;
+            var step = RecruiterSubModule.Config.GarrisonPercentChangeByStep;
+            var increaseLimit = (currentLimit + step) >= 100 ? 100 : currentLimit + step;
+            return increaseLimit;
+        }
+
+        private int GetDecreaseLimitInPercent(Settlement settlement)
+        {
+            var currentLimit = GetRecruiterDataAtSettlement(Settlement.CurrentSettlement).MaxPercentOfUnitsInGarrison;
+            var step = RecruiterSubModule.Config.GarrisonPercentChangeByStep;
+            var decreaseLimit = (currentLimit - step) <= 0 ? 0 : currentLimit - step;
+            return decreaseLimit;
+        }
+        
         private int GetRecruiterCost(int level)
         {
             switch (level)
@@ -396,7 +516,6 @@ namespace Recruiter
 
         private bool SwitchEnabledAndDisabledState(Settlement settlement)
         {
-
             var recruiterData = GetRecruiterDataAtSettlement(settlement);
             
             if (!recruiterData.HasRecruiter)
@@ -405,6 +524,10 @@ namespace Recruiter
             }
             
             recruiterData.IsRecruiterEnabled = !recruiterData.IsRecruiterEnabled;
+
+            var stateText = recruiterData.IsRecruiterEnabled ? "Enabled" : "Disabled";
+            InformationManager.DisplayMessage(new InformationMessage($"Recruiter in {settlement.Name} is {stateText} now."));
+            
             return true;
         }
 
